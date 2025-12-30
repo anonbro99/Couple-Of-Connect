@@ -1,0 +1,8 @@
+{
+  "name": "CoupleConnect ",
+  "description": "Premium 1-to-1 space for couples featuring Neural Chat, Digital Vault, Truth or Dare games, and Memory Gallery.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
