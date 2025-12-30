@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { User } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Chat } from '../types';
 import { store } from '../services/storeService';
 import { Button } from '../components/Button';
 import { Search, UserPlus, MessageCircle, AlertCircle } from 'lucide-react';
@@ -14,29 +14,40 @@ export const SearchView: React.FC<SearchViewProps> = ({ currentUser, onStartChat
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<User[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [u, c] = await Promise.all([
+        store.getUsers(),
+        store.getChats(currentUser.uid)
+      ]);
+      setAllUsers(u);
+      setChats(c);
+    };
+    fetchData();
+  }, [currentUser.uid]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
     const normalizedQuery = query.startsWith('@') ? query.toLowerCase() : `@${query.toLowerCase()}`;
-    const allUsers = store.getUsers();
     const found = allUsers.filter(u => u.userId.toLowerCase().includes(normalizedQuery) && u.uid !== currentUser.uid);
     
     setResults(found);
     setHasSearched(true);
   };
 
-  const startChat = (partner: User) => {
-    const existingChat = store.getChats().find(c => 
+  const startChat = async (partner: User) => {
+    const existingChat = chats.find(c => 
       c.members.includes(currentUser.uid) && c.members.includes(partner.uid)
     );
 
     if (!existingChat) {
-      store.createChat({
-        chatId: Math.random().toString(36).substr(2, 9),
-        members: [currentUser.uid, partner.uid],
-        createdAt: Date.now()
+      await store.createChat({
+        members: [currentUser.uid, partner.uid]
       });
     }
     

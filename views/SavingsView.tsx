@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Saving, PaymentMethod } from '../types';
 import { store } from '../services/storeService';
 import { Button } from '../components/Button';
@@ -17,8 +17,17 @@ export const SavingsView: React.FC<SavingsViewProps> = ({ currentUser }) => {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<PaymentMethod>('QRIS');
   const [proofImage, setProofImage] = useState<string | null>(null);
+  const [allSavings, setAllSavings] = useState<Saving[]>([]);
+
+  const fetchSavings = async () => {
+    const data = await store.getSavings();
+    setAllSavings(data);
+  };
+
+  useEffect(() => {
+    fetchSavings();
+  }, []);
   
-  const allSavings = store.getSavings();
   const acceptedBalance = allSavings.filter(s => s.status === 'accepted').reduce((sum, s) => sum + s.amount, 0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,34 +41,32 @@ export const SavingsView: React.FC<SavingsViewProps> = ({ currentUser }) => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || isNaN(Number(amount)) || !proofImage) {
       alert('Mohon masukkan nominal dan bukti pembayaran.');
       return;
     };
 
-    const newSaving: Saving = {
-      savingId: Math.random().toString(36).substr(2, 9),
+    const newSaving: Partial<Saving> = {
       userId: currentUser.uid,
       userName: currentUser.displayName,
       amount: Number(amount),
       paymentMethod: method,
       proofImage: proofImage,
-      status: 'pending',
-      createdAt: Date.now()
     };
 
-    store.addSaving(newSaving);
+    await store.addSaving(newSaving);
     setShowAddForm(false);
     setAmount('');
     setProofImage(null);
+    fetchSavings();
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Hapus catatan tabungan ini?')) {
-      store.deleteSaving(id);
-      window.location.reload();
+      await store.deleteSaving(id);
+      fetchSavings();
     }
   };
 

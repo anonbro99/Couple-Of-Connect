@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { User, Saving, GalleryPhoto } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Saving, GalleryPhoto, SavingStatus } from '../types';
 import { store } from '../services/storeService';
 import { Button } from '../components/Button';
 import { 
@@ -15,45 +15,65 @@ import {
 } from 'lucide-react';
 
 export const AdminView: React.FC = () => {
-  const [savings, setSavings] = useState<Saving[]>(store.getSavings());
-  const [users, setUsers] = useState<User[]>(store.getUsers());
-  const [gallery, setGallery] = useState<GalleryPhoto[]>(store.getGallery());
+  const [savings, setSavings] = useState<Saving[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
   const [activeTab, setActiveTab] = useState<'savings' | 'users' | 'gallery'>('savings');
 
-  const handleApprove = (id: string) => {
-    store.updateSavingStatus(id, 'accepted');
-    setSavings(store.getSavings());
+  const fetchAllData = async () => {
+    const [s, u, g] = await Promise.all([
+      store.getSavings(),
+      store.getUsers(),
+      store.getGallery()
+    ]);
+    setSavings(s);
+    setUsers(u);
+    setGallery(g);
   };
 
-  const handleReject = (id: string) => {
-    store.updateSavingStatus(id, 'rejected');
-    setSavings(store.getSavings());
+  useEffect(() => {
+    fetchAllData();
+  }, []);
+
+  const handleApprove = async (id: string) => {
+    await store.updateSavingStatus(id, 'accepted');
+    const s = await store.getSavings();
+    setSavings(s);
   };
 
-  const handleDeleteSaving = (id: string) => {
+  const handleReject = async (id: string) => {
+    await store.updateSavingStatus(id, 'rejected');
+    const s = await store.getSavings();
+    setSavings(s);
+  };
+
+  const handleDeleteSaving = async (id: string) => {
     if (confirm('Delete this record?')) {
-      store.deleteSaving(id);
-      setSavings(store.getSavings());
+      await store.deleteSaving(id);
+      const s = await store.getSavings();
+      setSavings(s);
     }
   };
 
-  const handleDeleteUser = (uid: string) => {
+  const handleDeleteUser = async (uid: string) => {
     if (confirm('Delete this user account and all related data?')) {
-      store.deleteUser(uid);
-      setUsers(store.getUsers());
+      await store.deleteUser(uid);
+      const u = await store.getUsers();
+      setUsers(u);
     }
   };
 
-  const handleDeletePhoto = (id: string) => {
+  const handleDeletePhoto = async (id: string) => {
     if (confirm('Remove this photo from gallery?')) {
-      store.deletePhoto(id);
-      setGallery(store.getGallery());
+      await store.deletePhoto(id);
+      const g = await store.getGallery();
+      setGallery(g);
     }
   };
 
-  const handleClearGallery = () => {
+  const handleClearGallery = async () => {
     if (confirm('CRITICAL: Clear the ENTIRE shared gallery? This cannot be undone.')) {
-      store.clearAllPhotos();
+      await store.clearAllPhotos();
       setGallery([]);
     }
   };

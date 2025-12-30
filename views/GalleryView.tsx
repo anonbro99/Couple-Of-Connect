@@ -20,8 +20,13 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ currentUser }) => {
   const [caption, setCaption] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
+  const fetchGallery = async () => {
+    const data = await store.getGallery();
+    setPhotos(data);
+  };
+
   useEffect(() => {
-    setPhotos(store.getGallery());
+    fetchGallery();
   }, []);
 
   const handleCapture = (base64: string) => {
@@ -40,34 +45,32 @@ export const GalleryView: React.FC<GalleryViewProps> = ({ currentUser }) => {
     }
   };
 
-  const handleUpload = (e: React.FormEvent) => {
+  const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedImage) return;
 
-    const newPhoto: GalleryPhoto = {
-      photoId: Math.random().toString(36).substr(2, 9),
+    const newPhoto: Partial<GalleryPhoto> = {
       imageUrl: selectedImage,
       title: title || 'Kenangan Indah',
       caption: caption || 'Momen bersama pasangan.',
       uploadedBy: currentUser.uid,
       uploaderName: currentUser.displayName,
       isPublic: true,
-      createdAt: Date.now()
     };
 
-    store.addPhoto(newPhoto);
-    setPhotos([...photos, newPhoto]);
+    await store.addPhoto(newPhoto);
     setShowUpload(false);
     setSelectedImage(null);
     setTitle('');
     setCaption('');
+    fetchGallery();
   };
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm('Hapus kenangan ini selamanya?')) {
-      store.deletePhoto(id);
-      setPhotos(photos.filter(p => p.photoId !== id));
+      await store.deletePhoto(id);
+      fetchGallery();
     }
   };
 

@@ -1,6 +1,6 @@
 
-import React from 'react';
-import { User, Saving, GalleryPhoto } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Saving, GalleryPhoto, Chat } from '../types';
 import { store } from '../services/storeService';
 import { Button } from '../components/Button';
 import { SavingsChart } from '../components/SavingsChart';
@@ -12,9 +12,24 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({ user, onNavigate }) => {
-  const savings = store.getSavings();
-  const gallery = store.getGallery();
-  const chats = store.getChats().filter(c => c.members.includes(user.uid));
+  // Use state for asynchronous data
+  const [savings, setSavings] = useState<Saving[]>([]);
+  const [gallery, setGallery] = useState<GalleryPhoto[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const [s, g, c] = await Promise.all([
+        store.getSavings(),
+        store.getGallery(),
+        store.getChats(user.uid)
+      ]);
+      setSavings(s);
+      setGallery(g);
+      setChats(c);
+    };
+    fetchData();
+  }, [user.uid]);
   
   const acceptedSavings = savings.filter(s => s.status === 'accepted');
   const totalBalance = acceptedSavings.reduce((acc, curr) => acc + curr.amount, 0);

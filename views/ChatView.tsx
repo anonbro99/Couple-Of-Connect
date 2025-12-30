@@ -14,10 +14,21 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onNavigate }) =
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const chats = store.getChats().filter(c => c.members.includes(currentUser.uid));
-  const users = store.getUsers();
+  useEffect(() => {
+    const fetchBaseData = async () => {
+      const [c, u] = await Promise.all([
+        store.getChats(currentUser.uid),
+        store.getUsers()
+      ]);
+      setChats(c);
+      setUsers(u);
+    };
+    fetchBaseData();
+  }, [currentUser.uid]);
 
   const getPartner = (chat: Chat) => {
     const partnerId = chat.members.find(id => id !== currentUser.uid);
@@ -26,7 +37,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onNavigate }) =
 
   useEffect(() => {
     if (selectedChat) {
-      setMessages(store.getMessages(selectedChat.chatId));
+      store.getMessages(selectedChat.chatId).then(setMessages);
     }
   }, [selectedChat]);
 
@@ -34,7 +45,7 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onNavigate }) =
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = (textOverride?: string) => {
+  const handleSendMessage = async (textOverride?: string) => {
     const textToSend = textOverride || inputText;
     if (!textToSend.trim() || !selectedChat) return;
 
@@ -46,8 +57,8 @@ export const ChatView: React.FC<ChatViewProps> = ({ currentUser, onNavigate }) =
       timestamp: Date.now()
     };
 
-    store.sendMessage(newMessage);
-    setMessages([...messages, newMessage]);
+    await store.sendMessage(newMessage);
+    setMessages(prev => [...prev, newMessage]);
     if (!textOverride) setInputText('');
   };
 

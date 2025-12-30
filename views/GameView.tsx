@@ -45,6 +45,7 @@ export const GameView: React.FC<{ user: User }> = ({ user }) => {
   const [session, setSession] = useState<GameSession | null>(null);
   const [isSpinning, setIsSpinning] = useState(false);
   const [partner, setPartner] = useState<User | null>(null);
+  const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [answerText, setAnswerText] = useState('');
   const [answerImage, setAnswerImage] = useState<string | null>(null);
   const [answerVideo, setAnswerVideo] = useState<string | null>(null);
@@ -53,38 +54,43 @@ export const GameView: React.FC<{ user: User }> = ({ user }) => {
   
   const activityRef = useRef<HTMLDivElement>(null);
 
-  const activeChat = store.getChats().find(c => c.members.includes(user.uid));
-
   useEffect(() => {
-    if (activeChat) {
-      const partnerId = activeChat.members.find(id => id !== user.uid);
-      const partnerUser = store.getUsers().find(u => u.uid === partnerId);
-      if (partnerUser) setPartner(partnerUser);
+    const initGame = async () => {
+      const chats = await store.getChats(user.uid);
+      const chat = chats[0]; // For simplicity, take the first chat
+      if (chat) {
+        setActiveChat(chat);
+        const users = await store.getUsers();
+        const partnerId = chat.members.find(id => id !== user.uid);
+        const partnerUser = users.find(u => u.uid === partnerId);
+        if (partnerUser) setPartner(partnerUser);
 
-      const existingSession = store.getGameSession(activeChat.chatId);
-      if (!existingSession) {
-        const newSession: GameSession = {
-          chatId: activeChat.chatId,
-          turnUid: user.uid,
-          currentChallenge: null,
-          challengeType: null,
-          lastAnswerText: null,
-          lastAnswerImage: null,
-          lastAnswerVideo: null,
-          lastUpdated: Date.now()
-        };
-        store.updateGameSession(newSession);
-        setSession(newSession);
-      } else {
-        setSession(existingSession);
+        const existingSession = await store.getGameSession(chat.chatId);
+        if (!existingSession) {
+          const newSession: GameSession = {
+            chatId: chat.chatId,
+            turnUid: user.uid,
+            currentChallenge: null,
+            challengeType: null,
+            lastAnswerText: null,
+            lastAnswerImage: null,
+            lastAnswerVideo: null,
+            lastUpdated: Date.now()
+          };
+          await store.updateGameSession(newSession);
+          setSession(newSession);
+        } else {
+          setSession(existingSession);
+        }
       }
-    }
-  }, []);
+    };
+    initGame();
+  }, [user.uid]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       if (activeChat) {
-        const s = store.getGameSession(activeChat.chatId);
+        const s = await store.getGameSession(activeChat.chatId);
         if (s && s.lastUpdated !== session?.lastUpdated) {
           setSession(s);
           activityRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -98,7 +104,7 @@ export const GameView: React.FC<{ user: User }> = ({ user }) => {
     if (!session || session.turnUid !== user.uid) return;
     setIsSpinning(true);
     
-    setTimeout(() => {
+    setTimeout(async () => {
       const list = selectedType === 'truth' ? TRUTHS : DARES;
       const random = list[Math.floor(Math.random() * list.length)];
       
@@ -112,13 +118,13 @@ export const GameView: React.FC<{ user: User }> = ({ user }) => {
         lastUpdated: Date.now()
       };
       
-      store.updateGameSession(updatedSession);
+      await store.updateGameSession(updatedSession);
       setSession(updatedSession);
       setIsSpinning(false);
     }, 1500);
   };
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (!session || !partner) return;
     
     const updatedSession: GameSession = {
@@ -130,16 +136,16 @@ export const GameView: React.FC<{ user: User }> = ({ user }) => {
       lastUpdated: Date.now()
     };
     
-    store.updateGameSession(updatedSession);
+    await store.updateGameSession(updatedSession);
     setSession(updatedSession);
     setAnswerText('');
     setAnswerImage(null);
     setAnswerVideo(null);
   };
 
-  const terminateSession = () => {
+  const terminateSession = async () => {
     if (activeChat && confirm('Akhiri sesi permainan ini?')) {
-      store.updateGameSession(null, activeChat.chatId);
+      await store.updateGameSession(null, activeChat.chatId);
       window.location.reload();
     }
   };
